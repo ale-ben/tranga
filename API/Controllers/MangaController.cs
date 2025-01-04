@@ -2,6 +2,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using static Microsoft.AspNetCore.Http.StatusCodes;
+using System.ServiceModel.Syndication;
+using System.Text;
+using System.Xml;
 
 namespace API.Controllers;
 
@@ -22,7 +25,7 @@ public class MangaController(PgsqlContext context) : Controller
         Manga[] ret = context.Manga.ToArray();
         return Ok(ret);
     }
-    
+
     /// <summary>
     /// Returns all cached Manga with IDs
     /// </summary>
@@ -30,7 +33,7 @@ public class MangaController(PgsqlContext context) : Controller
     /// <returns>Array of Manga</returns>
     [HttpPost("WithIDs")]
     [ProducesResponseType<Manga[]>(Status200OK)]
-    public IActionResult GetManga([FromBody]string[] ids)
+    public IActionResult GetManga([FromBody] string[] ids)
     {
         Manga[] ret = context.Manga.Where(m => ids.Contains(m.MangaId)).ToArray();
         return Ok(ret);
@@ -111,7 +114,7 @@ public class MangaController(PgsqlContext context) : Controller
         Chapter[] ret = context.Chapters.Where(c => c.ParentManga.MangaId == m.MangaId).ToArray();
         return Ok(ret);
     }
-    
+
     /// <summary>
     /// Returns the latest Chapter of requested Manga
     /// </summary>
@@ -131,7 +134,7 @@ public class MangaController(PgsqlContext context) : Controller
             return NotFound("Chapter could not be found");
         return Ok(max);
     }
-    
+
     /// <summary>
     /// Configure the cut-off for Manga
     /// </summary>
@@ -147,7 +150,7 @@ public class MangaController(PgsqlContext context) : Controller
             return NotFound("Manga could not be found");
         return Ok(m.IgnoreChapterBefore);
     }
-    
+
     /// <summary>
     /// Move the Directory the .cbz-files are located in
     /// </summary>
@@ -156,8 +159,28 @@ public class MangaController(PgsqlContext context) : Controller
     /// <returns>Nothing</returns>
     [HttpPost("{id}/MoveFolder")]
     [ProducesResponseType<string>(Status500InternalServerError)]
-    public IActionResult MoveFolder(string id, [FromBody]string folder)
+    public IActionResult MoveFolder(string id, [FromBody] string folder)
     {
         return StatusCode(500, "Not implemented"); //TODO
+    }
+
+    /// <summary>
+    /// Returns the RSS containing the last n entries for the specified manga
+    /// </summary>
+    /// <param name="id">Manga-ID</param>
+    /// <returns>RSS List</returns>
+    [HttpGet("{id}/rss")]
+    [ProducesResponseType<string>(Status500InternalServerError)]
+    public IActionResult GetRss(string id)
+    {
+        Manga? res = context.Manga.Find(id);
+        
+        if (res is null)
+            return NotFound("Manga could not be found");
+        
+        Chapter[] ret = context.Chapters.Where(c => c.ParentManga.MangaId == res.MangaId).ToArray();
+
+        return Content(res.GetRSS(ret), "application/xml", Encoding.UTF8);
+
     }
 }

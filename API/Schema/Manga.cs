@@ -7,6 +7,9 @@ using API.Schema.Jobs;
 using API.Schema.MangaConnectors;
 using Microsoft.EntityFrameworkCore;
 using static System.IO.UnixFileMode;
+using System.ServiceModel.Syndication;
+using System.Text;
+using System.Xml;
 
 namespace API.Schema;
 
@@ -119,6 +122,55 @@ public class Manga(
             File.SetUnixFileMode(publicationFolder, GroupRead | GroupWrite | GroupExecute | OtherRead | OtherWrite | OtherExecute | UserRead | UserWrite | UserExecute);
         return publicationFolder;
     }
-    
+
+    public string GetRSS(Chapter[] chapters)
+    {
+        var feed = new SyndicationFeed(Name, Description, new Uri(WebsiteUrl));
+        feed.Description = new TextSyndicationContent(Description);
+        feed.Language = OriginalLanguage;
+        feed.Links.Add(new SyndicationLink(new Uri(WebsiteUrl)));
+        
+        foreach (var link in Links)
+        {
+            feed.Links.Add(new SyndicationLink(new Uri(link.LinkUrl)));
+        }
+        
+        foreach (var author in Authors)
+        {
+            feed.Authors.Add(new SyndicationPerson(null, author.AuthorName, null));
+        }
+        
+        foreach (var tag in Tags)
+        {
+            feed.Categories.Add(new SyndicationCategory(tag.Tag));
+        }
+
+        var items = new List<SyndicationItem>();
+        
+        foreach (var chapter in chapters)
+        {
+            var item = new SyndicationItem();
+            item.Title = new TextSyndicationContent(chapter.Title);
+            item.Links.Add(new SyndicationLink(new Uri(chapter.Url)));
+            item.Id = chapter.ChapterId;
+            
+            items.Add(item);
+        }
+
+        feed.Items = items;
+        
+        string atomFeed;
+        using (var stringWriter = new StringWriter())
+        {
+            using (var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings { Indent = true }))
+            {
+                var atomFormatter = new Atom10FeedFormatter(feed);
+                atomFormatter.WriteTo(xmlWriter);
+            }
+            atomFeed = stringWriter.ToString();
+        }
+        
+        return atomFeed;
+    }
     //TODO onchanges create job to update metadata files in archives, etc.
 }
