@@ -11,7 +11,8 @@ public class Chapter : IComparable<Chapter>
     [MaxLength(64)]
     public string ChapterId { get; init; } = TokenGen.CreateToken(typeof(Chapter), 64);
     public int? VolumeNumber { get; private set; }
-    public ChapterNumber ChapterNumber { get; private set; }
+    [MaxLength(10)]
+    public string ChapterNumber { get; private set; }
     public string Url { get; internal set; }
     public string? Title { get; private set; }
     public string ArchiveFileName { get; private set; }
@@ -20,13 +21,14 @@ public class Chapter : IComparable<Chapter>
     public string ParentMangaId { get; internal set; }
     public Manga? ParentManga { get; init; }
 
-    public Chapter(Manga parentManga, string url, ChapterNumber chapterNumber, int? volumeNumber = null, string? title = null)
-        : this(parentManga.MangaId, url, chapterNumber, volumeNumber, title)
+    public Chapter(Manga parentManga, string url, string chapterNumberStruct, int? volumeNumber = null, string? title = null)
+        : this(parentManga.MangaId, url, chapterNumberStruct, volumeNumber, title)
     {
         this.ParentManga = parentManga;
+        this.ArchiveFileName = BuildArchiveFileName();
     }
     
-    public Chapter(string parentMangaId, string url, ChapterNumber chapterNumber,
+    public Chapter(string parentMangaId, string url, string chapterNumber,
         int? volumeNumber = null, string? title = null)
     {
         this.ParentMangaId = parentMangaId;
@@ -34,10 +36,9 @@ public class Chapter : IComparable<Chapter>
         this.ChapterNumber = chapterNumber;
         this.VolumeNumber = volumeNumber;
         this.Title = title;
-        this.ArchiveFileName = BuildArchiveFileName();
     }
 
-    public MoveFileOrFolderJob? UpdateChapterNumber(ChapterNumber chapterNumber)
+    public MoveFileOrFolderJob? UpdateChapterNumber(string chapterNumber)
     {
         this.ChapterNumber = chapterNumber;
         return UpdateArchiveFileName();
@@ -86,6 +87,26 @@ public class Chapter : IComparable<Chapter>
         return File.Exists(path);
     }
 
+    private static int CompareChapterNumbers(string ch1, string ch2)
+    {
+        var ch1Arr = ch1.Split('.').Select(c => int.Parse(c)).ToArray();
+        var ch2Arr = ch2.Split('.').Select(c => int.Parse(c)).ToArray();
+
+        int i = 0, j = 0;
+        
+        while (i < ch1Arr.Length && j < ch2Arr.Length)
+        {
+            if (ch1Arr[i] < ch2Arr[j])
+                return -1;
+            if (ch1Arr[i] > ch2Arr[j])
+                return 1;
+            i++;
+            j++;
+        }
+        
+        return 0;
+    }
+
     public int CompareTo(Chapter? other)
     {
         if(other is not { } otherChapter)
@@ -94,7 +115,7 @@ public class Chapter : IComparable<Chapter>
         {
             <0 => -1,
             >0 => 1,
-            _ => this.ChapterNumber.CompareTo(otherChapter.ChapterNumber)
+            _ => CompareChapterNumbers(this.ChapterNumber, otherChapter.ChapterNumber)
         };
     }
     
