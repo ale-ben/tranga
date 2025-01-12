@@ -21,8 +21,8 @@ public class Chapter : IComparable<Chapter>
     public string ParentMangaId { get; internal set; }
     public Manga? ParentManga { get; init; }
 
-    public Chapter(Manga parentManga, string url, string chapterNumberStruct, int? volumeNumber = null, string? title = null)
-        : this(parentManga.MangaId, url, chapterNumberStruct, volumeNumber, title)
+    public Chapter(Manga parentManga, string url, string chapterNumber, int? volumeNumber = null, string? title = null)
+        : this(parentManga.MangaId, url, chapterNumber, volumeNumber, title)
     {
         this.ParentManga = parentManga;
         this.ArchiveFileName = BuildArchiveFileName();
