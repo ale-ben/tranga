@@ -1,5 +1,6 @@
 ﻿using API.Schema;
 using API.Schema.Jobs;
+using API.Schema.NotificationConnectors;
 using log4net;
 using log4net.Config;
 
@@ -20,9 +21,9 @@ public static class Tranga
     private static void NotificationSender(object? pgsqlContext)
     {
         if (pgsqlContext is null) return;
-        var context = (PgsqlContext)pgsqlContext;
+        PgsqlContext context = (PgsqlContext)pgsqlContext;
 
-        var staleNotifications =
+        IQueryable<Notification> staleNotifications =
             context.Notifications.Where(n => n.Urgency < NotificationUrgency.Normal);
         context.Notifications.RemoveRange(staleNotifications);
         context.SaveChanges();
@@ -39,14 +40,14 @@ public static class Tranga
 
     private static void SendNotifications(PgsqlContext context, NotificationUrgency urgency)
     {
-        var notifications = context.Notifications.Where(n => n.Urgency == urgency).ToList();
+        List<Notification> notifications = context.Notifications.Where(n => n.Urgency == urgency).ToList();
         if (notifications.Any())
         {
-            var max = notifications.MaxBy(n => n.Date)!.Date;
+            DateTime max = notifications.MaxBy(n => n.Date)!.Date;
             if (DateTime.Now.Subtract(max) > TrangaSettings.NotificationUrgencyDelay(urgency))
             {
-                foreach (var notificationConnector in context.NotificationConnectors)
-                foreach (var notification in notifications)
+                foreach (NotificationConnector notificationConnector in context.NotificationConnectors)
+                foreach (Notification notification in notifications)
                     notificationConnector.SendNotification(notification.Title, notification.Message);
                 context.Notifications.RemoveRange(notifications);
             }
@@ -58,15 +59,15 @@ public static class Tranga
     private static void JobStarter(object? pgsqlContext)
     {
         if (pgsqlContext is null) return;
-        var context = (PgsqlContext)pgsqlContext;
+        PgsqlContext context = (PgsqlContext)pgsqlContext;
 
-        var TRANGA =
+        string TRANGA =
             "\n\n _______                                   \n|_     _|.----..---.-..-----..-----..---.-.\n  |   |  |   _||  _  ||     ||  _  ||  _  |\n  |___|  |__|  |___._||__|__||___  ||___._|\n                             |_____|       \n\n";
         Log.Info(TRANGA);
         while (true)
         {
-            var completedJobs = context.Jobs.Where(j => j.state == JobState.Completed).ToList();
-            foreach (var job in completedJobs)
+            List<Job> completedJobs = context.Jobs.Where(j => j.state == JobState.Completed).ToList();
+            foreach (Job job in completedJobs)
                 if (job.RecurrenceMs <= 0)
                 {
                     context.Jobs.Remove(job);
@@ -80,7 +81,7 @@ public static class Tranga
 
             List<Job> runJobs = context.Jobs.Where(j => j.state <= JobState.Running).AsEnumerable()
                 .Where(j => j.NextExecution < DateTime.UtcNow).ToList();
-            foreach (var job in runJobs)
+            foreach (Job job in runJobs)
             {
                 // If the job is already running, skip it
                 if (RunningJobs.Values.Any(j => j.JobId == job.JobId)) continue;
