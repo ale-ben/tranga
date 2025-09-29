@@ -24,7 +24,8 @@ public class MangaContext(DbContextOptions<MangaContext> options) : TrangaBaseCo
             .HasValue<Global>("Global")
             .HasValue<MangaDex>("MangaDex")
             .HasValue<MangaPark>("MangaPark")
-            .HasValue<Mangaworld>("Mangaworld");
+            .HasValue<Mangaworld>("Mangaworld")
+            .HasValue<Weebcentral>("Weebcentral");
 
         //Manga has many Chapters
         modelBuilder.Entity<Manga>()
